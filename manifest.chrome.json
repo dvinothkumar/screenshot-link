@@ -55,6 +55,20 @@
   "permissions": [
     "storage",
     "scripting",
-    "activeTab"
-  ]
+    "activeTab",
+    "identity",
+    "notifications",
+    "clipboardWrite"
+  ],
+
+  "host_permissions": [
+    "*://drive.google.com/*"
+  ],
+
+  "oauth2": {
+    "client_id": "462421682086-bkfa9rk8vmeh1s1kpdfnf1j0jap58npm.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  }
 }

@@ -210,3 +210,184 @@ span.s-text code { background: #ececec; padding: 5px 8px; border-radius: 3px; }
 .disabled .s-label span {
   color: #cacaca !important;
 }
+
+/* Auth Status Colors */
+.s-auth-status.s-success {
+  color: #28a745 !important; /* Green for success */
+  font-weight: bold;
+}
+.s-auth-status.s-error {
+  color: #dc3545 !important; /* Red for error */
+  font-weight: bold;
+}
+
+/*---------------------------------------------------------------------------*/
+/*Google Drive folder selector*/
+
+.drive-folder-selector {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.selected-folder {
+  margin-right: 10px;
+  padding: 5px 10px;
+  background: #f5f5f5;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  display: inline-block;
+}
+
+/*---------------------------------------------------------------------------*/
+/*Folder Browser Modal*/
+
+.folder-browser-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.folder-browser-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.folder-browser-content {
+  position: relative;
+  width: 80%;
+  max-width: 800px;
+  max-height: 80%;
+  background: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.folder-browser-header {
+  padding: 15px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.folder-browser-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.folder-browser-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #999;
+}
+
+.folder-browser-breadcrumbs {
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.breadcrumb-link {
+  color: #607d8b;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  font-weight: bold;
+}
+
+.folder-browser-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+.folder-browser-loading,
+.folder-browser-error,
+.folder-browser-empty {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+}
+
+.folder-browser-error {
+  color: #d9534f;
+}
+
+.folder-browser-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.folder-item {
+  border: 1px solid #eee;
+  border-radius: 5px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  transition: background-color 0.2s;
+}
+
+.folder-item:hover {
+  background-color: #f9f9f9;
+}
+
+.folder-icon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.folder-name {
+  font-size: 14px;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.folder-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+.folder-select,
+.folder-open {
+  background: #ececec;
+  border: none;
+  border-radius: 3px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.folder-select:hover,
+.folder-open:hover {
+  background: #ddd;
+}
+
+.folder-browser-footer {
+  padding: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
