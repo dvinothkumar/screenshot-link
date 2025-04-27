@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name"            : "Screenshot Link",
+  "version"         : "3.1",
+  "description"     : "Capture viewport, crop & save to file, copy to clipboard as binary or data URL",
+
+  "homepage_url": "https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc",
+
+  "icons": {
+    "16" : "/icons/icon16.png",
+    "48" : "/icons/icon48.png",
+    "128": "/icons/icon128.png"
+  },
+
+  "action": {
+    "default_icon": {
+      "16" : "/icons/icon16.png",
+      "48" : "/icons/icon48.png",
+      "128": "/icons/icon128.png"
+    },
+    "default_title": "Screenshot Link"
+  },
+
+  "background" : {
+    "service_worker": "background/index.js"
+  },
+
+  "options_page": "/options/index.html",
+
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "resources": [
+        "/vendor/Jcrop.gif",
+        "/content/pixel.png"
+      ]
+    }
+  ],
+
+  "commands": {
+    "take-screenshot": {
+      "description": "Take Screenshot",
+      "suggested_key": {
+        "default": "Alt+S"
+      }
+    }
+  },
+
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "identity",
+    "notifications",
+    "clipboardWrite",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "*://drive.google.com/*"
+  ],
+
+  "oauth2": {
+    "client_id": "831180904070-40p7c6qc0sr733gd1c3u0559oc56d7fv.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  }
+}

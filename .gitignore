@@ -7,5 +7,4 @@ build/mdc/tmp
 
 /vendor/
 /*.zip
-/manifest.json
 Thumbs.db
