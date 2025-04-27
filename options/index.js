@@ -15,7 +15,9 @@ var state = {
   driveFolderUrlInput: '', // Added for the URL input field
   driveAuthStatus: 'checking',
   driveFolderValidationStatus: 'idle', // 'idle', 'checking', 'valid', 'invalid'
-  driveFolderValidationError: null // Holds error message if invalid
+  driveFolderValidationError: null, // Holds error message if invalid
+  lastValidDriveFolderId: '', // Store the last successfully validated/saved ID
+  lastValidDriveFolderName: 'My Drive' // Store the last successfully validated/saved name
   // folderBrowser state removed
 }
 
@@ -32,6 +34,11 @@ chrome.storage.sync.get((config) => {
   state.driveFolderId = config.driveFolderId || '';
   // Load saved folder name if ID exists, otherwise default to 'My Drive'
   state.driveFolderName = config.driveFolderId ? (config.driveFolderName || `Folder ID: ${config.driveFolderId}`) : 'My Drive';
+  // Initialize last known valid state from storage
+  state.lastValidDriveFolderId = state.driveFolderId;
+  state.lastValidDriveFolderName = state.driveFolderName;
+  // Initialize the input field based on the loaded state
+  state.driveFolderUrlInput = state.driveFolderId ? `https://drive.google.com/drive/folders/${state.driveFolderId}` : '';
   state.saveToDrive = true; // Keep this? Seems redundant now. Let's keep for consistency for now.
   checkDriveAuthStatus();
 });
@@ -91,9 +98,12 @@ function parseAndSaveFolderId(url) {
       // Treat invalid URL format as reverting to My Drive, but show a specific error
       state.driveFolderValidationStatus = 'invalid';
       state.driveFolderValidationError = 'Invalid Google Drive folder URL format.';
-      state.driveFolderId = ''; // Revert to My Drive
-      state.driveFolderName = 'My Drive'; // Reset name
-      chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }); // Save My Drive default
+      // Revert to the last known valid state
+      state.driveFolderId = state.lastValidDriveFolderId;
+      state.driveFolderName = state.lastValidDriveFolderName;
+      // Reset input field to reflect the reverted state
+      state.driveFolderUrlInput = state.lastValidDriveFolderId ? `https://drive.google.com/drive/folders/${state.lastValidDriveFolderId}` : '';
+      // No need to save here, as we are reverting to a previously saved state.
       m.redraw();
       return; // Stop processing
     }
@@ -115,24 +125,33 @@ function parseAndSaveFolderId(url) {
         console.error('Error communicating with background for folder check:', chrome.runtime.lastError);
         state.driveFolderValidationStatus = 'invalid';
         state.driveFolderValidationError = 'Error checking folder: ' + chrome.runtime.lastError.message;
-        state.driveFolderId = ''; // Revert to My Drive on error
-        state.driveFolderName = 'My Drive'; // Reset name
-        chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' });
+        // Revert to the last known valid state
+        state.driveFolderId = state.lastValidDriveFolderId;
+        state.driveFolderName = state.lastValidDriveFolderName;
+        // Reset input field to reflect the reverted state
+        state.driveFolderUrlInput = state.lastValidDriveFolderId ? `https://drive.google.com/drive/folders/${state.lastValidDriveFolderId}` : '';
+        // No need to save here, as we are reverting to a previously saved state.
       } else if (response && response.success) {
         console.log('Folder validation successful for ID:', extractedFolderId, 'Name:', response.name);
         state.driveFolderValidationStatus = 'valid';
         state.driveFolderValidationError = null;
         state.driveFolderId = extractedFolderId; // Set the valid ID
         state.driveFolderName = response.name || extractedFolderId; // Use name, fallback to ID if name missing
+        // Update last known valid state
+        state.lastValidDriveFolderId = state.driveFolderId;
+        state.lastValidDriveFolderName = state.driveFolderName;
         // Save both ID and Name
         chrome.storage.sync.set({ driveFolderId: extractedFolderId, driveFolderName: state.driveFolderName });
       } else {
         console.warn('Folder validation failed:', response ? response.error : 'Unknown error');
         state.driveFolderValidationStatus = 'invalid';
         state.driveFolderValidationError = response ? response.error : 'Folder not found or access denied.';
-        state.driveFolderId = ''; // Revert to My Drive
-        state.driveFolderName = 'My Drive'; // Reset name
-        chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }); // Save My Drive default
+        // Revert to the last known valid state
+        state.driveFolderId = state.lastValidDriveFolderId;
+        state.driveFolderName = state.lastValidDriveFolderName;
+        // Reset input field to reflect the reverted state
+        state.driveFolderUrlInput = state.lastValidDriveFolderId ? `https://drive.google.com/drive/folders/${state.lastValidDriveFolderId}` : '';
+        // No need to save here, as we are reverting to a previously saved state.
       }
       m.redraw(); // Update UI with validation result
     });
@@ -143,6 +162,11 @@ function parseAndSaveFolderId(url) {
     state.driveFolderValidationError = null;
     state.driveFolderId = ''; // Ensure state reflects My Drive
     state.driveFolderName = 'My Drive'; // Set name for My Drive
+    // Update last known valid state to My Drive
+    state.lastValidDriveFolderId = '';
+    state.lastValidDriveFolderName = 'My Drive';
+    // Explicitly clear input field state if it wasn't already empty
+    state.driveFolderUrlInput = '';
     chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }, () => { // Save My Drive default
        if (chrome.runtime.lastError) {
            console.error('Error saving default driveFolderId/Name:', chrome.runtime.lastError);

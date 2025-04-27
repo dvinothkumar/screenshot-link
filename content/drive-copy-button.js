@@ -90,18 +90,29 @@ console.log("drive-copy-button.js injected");
     copyImageButton.style.backgroundColor = '#fbbc05'; // Google yellow for processing
 
     try {
-      // Find the main image element (heuristic: largest visible image)
+      // Find the main image element (heuristic: closest to center)
       const images = Array.from(document.querySelectorAll('img'));
       let targetImage = null;
-      let maxArea = 0;
+      let minDistance = Infinity;
+      const viewportCenterX = window.innerWidth / 2;
+      const viewportCenterY = window.innerHeight / 2;
 
       images.forEach(img => {
-        if (img.offsetParent !== null && img.naturalWidth > 100 && img.naturalHeight > 100) { // Basic visibility and size check
-           const area = img.clientWidth * img.clientHeight;
-           if (area > maxArea) {
-               maxArea = area;
-               targetImage = img;
-           }
+        // Basic visibility check (removed size check)
+        if (img.offsetParent !== null) {
+          const rect = img.getBoundingClientRect();
+          const imageCenterX = rect.left + rect.width / 2;
+          const imageCenterY = rect.top + rect.height / 2;
+
+          const distance = Math.sqrt(
+            Math.pow(imageCenterX - viewportCenterX, 2) +
+            Math.pow(imageCenterY - viewportCenterY, 2)
+          );
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            targetImage = img;
+          }
         }
       });
 

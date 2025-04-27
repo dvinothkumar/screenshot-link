@@ -9,13 +9,12 @@
 - Full screen capture
 - Crop and capture
 - Configurable Keyboard Shortcut
-- Save screenshot as PNG image file to Google Drive
-- Copy screenshot link or image from Google Drive page
+- Copy screenshot link or image for easy sharing
 - Unique screenshot date/time file name
 - No special permissions required (beyond Google Drive access)
 - Free and Open Source
 
-# Options
+# Getting to the Options page
 
 1. Pin the extension to your browser toolbar
 2. Click on the extension button using your **Right** Mouse Button
@@ -37,7 +36,7 @@
     2. Hold down your left mouse button anywhere on the page and drag your mouse in any direction
     3. Release the mouse button when you are ready, the selected area will be captured
 
-#### **`Full Screen Capture`**
+#### **`Full Screen Capture (Default)`**
 
 1. Activate the extension by using the [keyboard shortcut](#keyboard-shortcut) or by clicking on the extension button
 2. The visible area of the screen will be captured
@@ -47,7 +46,7 @@
 Screenshots are saved directly to your Google Drive.
 
 1. Go to the extension options page.
-2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension uses the `drive.file` scope, which **only grants permission to create new files** (the screenshots) and **does not grant access to read or modify any other files** in your Google Drive.
+2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. 
 3. Optionally, under "Google Drive Folder", paste the URL of a specific folder within your Drive where screenshots should be saved. By default, they are saved in the root "My Drive" folder.
 
 **Important Note:** When screenshots are saved to Google Drive, they are automatically set to be **viewable by anyone with the link**. Exercise caution when sharing these links.
@@ -95,17 +94,11 @@ Note that you won't receive any future updates automatically!
 ## Build
 
 1. Clone this repository
-2. Execute `sh build/package.sh chrome` # Note: build script now produces screenshot-link named files
+2. Execute `sh build/package.sh` 
 3. Navigate to `chrome://extensions`
 4. Make sure that the `Developer mode` switch is enabled
 5. Click on the `Load unpacked` button and select the cloned directory
 
-## Manifest v2
-
-1. Clone the [mv2] branch (Screenshot Link v2.0) # Assuming branch name might change too
-2. Navigate to `chrome://extensions`
-3. Make sure that the `Developer mode` switch is enabled
-4. Click on the `Load unpacked` button and select the cloned directory
 
 # License
 
@@ -139,4 +132,4 @@ SOFTWARE.
   [chrome]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
 
   [releases]: https://github.com/dvinothkumar/screenshot-link/releases
-  [mv2]: https://github.com/dvinothkumar/screenshot-link/tree/mv2
+
