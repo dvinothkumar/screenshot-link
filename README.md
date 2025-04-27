@@ -47,8 +47,10 @@
 Screenshots are saved directly to your Google Drive.
 
 1. Go to the extension options page.
-2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension requires permission to view folders (to allow you to select a save location) and create files (to save the screenshots).
-3. Optionally, under "Google Drive Folder", click "Browse" to select a specific folder within your Drive where screenshots should be saved. By default, they are saved in the root "My Drive" folder.
+2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension only requires permission create files (to save the screenshots).
+3. Optionally, under "Google Drive Folder", paste the URL of a specific folder within your Drive where screenshots should be saved. By default, they are saved in the root "My Drive" folder.
+
+**Important Note:** When screenshots are saved to Google Drive, they are automatically set to be **viewable by anyone with the link**. Exercise caution when sharing these links.
 
 # Keyboard Shortcut
 

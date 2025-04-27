@@ -164,6 +164,39 @@ async function uploadToDrive(imageDataUrl, filename, folderId, token) {
       throw new Error(`Google Drive API Error: ${result.error?.message || response.statusText}`);
     }
     console.log('Drive Upload Success:', result);
+
+    // --- Set Permissions ---
+    if (result && result.id) {
+      const fileId = result.id;
+      const permissionsUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`;
+      const permissionsBody = {
+        role: 'reader',
+        type: 'anyone'
+      };
+      try {
+        const permResponse = await fetch(permissionsUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(permissionsBody)
+        });
+        const permResult = await permResponse.json();
+        if (!permResponse.ok) {
+          console.error('Drive Permissions Error Response:', permResult);
+          // Don't throw an error here, just log it, as the upload itself succeeded.
+          // The user can still access the file, just not shared as intended.
+        } else {
+          console.log('Drive Permissions Set Success:', permResult);
+        }
+      } catch (permError) {
+        console.error('Drive Permissions Fetch Error:', permError);
+        // Log error but don't fail the overall upload return
+      }
+    }
+    // --- End Set Permissions ---
+
     return result;
   } catch (error) {
     console.error('Drive Upload Fetch Error:', error);
@@ -171,74 +204,46 @@ async function uploadToDrive(imageDataUrl, filename, folderId, token) {
   }
 }
 
-async function listDriveFolders(token, parentId = null, pageToken = null) {
-  console.log(`Listing folders for parentId: ${parentId}, pageToken: ${pageToken}`);
+// listDriveFolders function removed as it's no longer needed
+
+async function checkDriveFolderExists(folderId, token) {
+  console.log(`Checking existence and name of Drive folder ID: ${folderId}`);
+  // Request 'name' field along with 'id'
+  const url = `https://www.googleapis.com/drive/v3/files/${folderId}?fields=id,name`;
   try {
-    let query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
-    if (parentId) {
-      query += ` and '${parentId}' in parents`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (response.ok) {
+      const result = await response.json();
+      console.log('Folder exists:', result);
+      // Return name along with existence status
+      return { exists: true, name: result.name };
     } else {
-      query += " and 'root' in parents";
-    }
-
-    let url = `https://www.googleapis.com/drive/v3/files?` +
-              `q=${encodeURIComponent(query)}` +
-              `&fields=nextPageToken,files(id,name,parents)` +
-              `&orderBy=name` +
-              `&pageSize=100`;
-
-    if (pageToken) {
-      url += `&pageToken=${pageToken}`;
-    }
-
-    console.log("Constructed Drive API URL:", url);
-
-    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-    const responseBody = await response.text();
-    console.log(`Drive API Response Status: ${response.status}`);
-    console.log("Drive API Raw Response Body:", responseBody);
-
-    if (!response.ok) {
-      let errorData;
+      console.warn(`Folder check failed: ${response.status} ${response.statusText}`);
+      // Attempt to parse error for more details, but don't fail if parsing fails
+      let errorMsg = `Folder not found or access denied (Status: ${response.status})`;
       try {
-        errorData = JSON.parse(responseBody);
-      } catch (e) {
-        console.error("Failed to parse error response JSON:", e);
-        errorData = { error: { message: `HTTP error ${response.status}` } };
-      }
-      console.error('Drive API Error:', errorData);
-      throw new Error(`Google Drive API Error: ${errorData.error?.message || response.statusText}`);
+          const errorResult = await response.json();
+          if (errorResult.error && errorResult.error.message) {
+              errorMsg = errorResult.error.message;
+          }
+      } catch (e) { /* Ignore parsing error */ }
+      return { exists: false, error: errorMsg };
     }
-
-    const result = JSON.parse(responseBody);
-    console.log("Parsed Drive API Result:", JSON.stringify(result, null, 2));
-    return result;
-
   } catch (error) {
-    console.error('Error in listDriveFolders function:', error);
-    throw error;
+    console.error('Error during folder existence check fetch:', error);
+    return { exists: false, error: 'Network error during folder check.' };
   }
 }
 
+
 // --- Message Listener ---
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // --- List Drive Folders ---
-  if (request.action === 'listDriveFolders') {
-    console.log('Received listDriveFolders message');
-    chrome.identity.getAuthToken({ interactive: true }, (token) => {
-      if (chrome.runtime.lastError || !token) {
-        console.error('Drive Auth Error for folder listing:', chrome.runtime.lastError);
-        sendResponse({ success: false, error: 'Authentication failed' });
-      } else {
-        listDriveFolders(token, request.parentId, request.pageToken)
-          .then(data => sendResponse({ success: true, folders: data }))
-          .catch(error => sendResponse({ success: false, error: error.message }));
-      }
-    });
-    return true; // Indicate async response
-  }
+  // --- List Drive Folders --- message handler removed
   // --- Upload to Drive ---
-  else if (request.action === 'uploadToDrive') {
+  if (request.action === 'uploadToDrive') { // Adjusted 'else if' to 'if'
     console.log('Received uploadToDrive message');
     chrome.identity.getAuthToken({ interactive: true }, (token) => {
       if (chrome.runtime.lastError || !token) {
@@ -246,7 +251,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: false, error: 'Authentication failed' });
       } else {
         chrome.storage.sync.get(['driveFolderId'], (config) => {
-          const folderId = config.driveFolderId || null;
+          // Ensure folderId is null if it's an empty string, otherwise use the ID
+          const folderId = config.driveFolderId ? config.driveFolderId : null;
+          console.log(`Using Drive Folder ID from storage: ${folderId === null ? 'null (My Drive)' : folderId}`);
 
           uploadToDrive(request.imageDataUrl, request.filename, folderId, token)
             .then(fileData => {
@@ -257,19 +264,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     console.log(`Opened uploaded file in new tab: ${fileData.webViewLink} (Tab ID: ${newTab.id})`);
                     // Inject the copy button script after the tab is created
                     if (newTab && newTab.id) {
+                      // Inject both scripts after a short delay to allow the page to load
                       setTimeout(() => {
-                        console.log(`Injecting drive-copy-button script into tab ${newTab.id}`);
+                        console.log(`Injecting scripts into new Drive tab ${newTab.id}`);
+                        // Inject warning banner script first
                         chrome.scripting.executeScript({
                           target: { tabId: newTab.id },
-                          files: ['content/drive-copy-button.js']
+                          files: ['content/drive-share-warning.js'] // New script for the banner
+                        }).then(() => {
+                          console.log("Successfully injected drive-share-warning.js");
+                          // Then inject the copy button script
+                          return chrome.scripting.executeScript({
+                            target: { tabId: newTab.id },
+                            files: ['content/drive-copy-button.js']
+                          });
                         }).then(() => {
                           console.log("Successfully injected drive-copy-button.js");
                         }).catch(err => {
-                          console.error("Failed to inject drive-copy-button.js:", err);
+                          console.error(`Failed to inject scripts into tab ${newTab.id}:`, err);
                         });
-                      }, 500);
+                      }, 1000); // Increased delay slightly
                     } else {
-                       console.error("Could not get new tab ID to inject copy button script.");
+                       console.error("Could not get new tab ID to inject scripts.");
                     }
                   });
                 sendResponse({ success: true });
@@ -282,6 +298,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             })
             .catch(error => sendResponse({ success: false, error: error.message }));
         });
+      }
+    });
+    return true; // Indicate async response
+  }
+  // --- Check Drive Folder Exists ---
+  else if (request.action === 'checkFolderExists') {
+    console.log('Received checkFolderExists message for ID:', request.folderId);
+    if (!request.folderId) {
+      sendResponse({ success: false, error: 'No Folder ID provided.' });
+      return false; // No async response needed
+    }
+    chrome.identity.getAuthToken({ interactive: false }, (token) => { // Use non-interactive check first
+      if (chrome.runtime.lastError || !token) {
+        console.error('Drive Auth Error for folder check:', chrome.runtime.lastError);
+        // Don't trigger interactive auth here, just report failure. User needs to auth first.
+        sendResponse({ success: false, error: 'Not authenticated with Google Drive.' });
+      } else {
+        checkDriveFolderExists(request.folderId, token)
+          .then(result => {
+            if (result.exists) {
+              // Send back the folder name on success
+              sendResponse({ success: true, name: result.name });
+            } else {
+              sendResponse({ success: false, error: result.error || 'Folder check failed.' });
+            }
+          })
+          .catch(error => { // Catch errors from checkDriveFolderExists itself
+            console.error("Caught error calling checkDriveFolderExists:", error);
+            sendResponse({ success: false, error: error.message || 'Error checking folder existence.' });
+          });
       }
     });
     return true; // Indicate async response

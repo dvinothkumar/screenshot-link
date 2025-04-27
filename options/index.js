@@ -11,21 +11,16 @@ var state = {
   delay: 500,
   saveToDrive: true,
   driveFolderId: '',
-  driveFolderName: 'My Drive',
+  driveFolderName: 'My Drive', // Re-added to store the validated folder name
+  driveFolderUrlInput: '', // Added for the URL input field
   driveAuthStatus: 'checking',
-  folderBrowser: {
-    isOpen: false,
-    loading: false,
-    error: null,
-    currentFolderId: null,
-    parentStack: [],
-    folders: [],
-    breadcrumbs: [{ id: null, name: 'My Drive' }]
-  }
+  driveFolderValidationStatus: 'idle', // 'idle', 'checking', 'valid', 'invalid'
+  driveFolderValidationError: null // Holds error message if invalid
+  // folderBrowser state removed
 }
 
 chrome.storage.sync.get((config) => {
-  state.method.forEach((item) => item.checked = item.id === config.method)
+  state.method.forEach((item) => item.checked = item.id === config.method);
   if (config.format !== 'png') {
       chrome.storage.sync.set({ format: 'png' });
   }
@@ -33,12 +28,13 @@ chrome.storage.sync.get((config) => {
       chrome.storage.sync.set({ save: 'drive' });
   }
   // Removed icon loading logic
-  state.delay = config.delay || 500
-  state.driveFolderId = config.driveFolderId || ''
-  state.driveFolderName = config.driveFolderId ? (config.driveFolderName || 'Selected Folder') : 'My Drive';
-  state.saveToDrive = true;
+  state.delay = config.delay || 500;
+  state.driveFolderId = config.driveFolderId || '';
+  // Load saved folder name if ID exists, otherwise default to 'My Drive'
+  state.driveFolderName = config.driveFolderId ? (config.driveFolderName || `Folder ID: ${config.driveFolderId}`) : 'My Drive';
+  state.saveToDrive = true; // Keep this? Seems redundant now. Let's keep for consistency for now.
   checkDriveAuthStatus();
-})
+});
 
 chrome.commands.getAll((commands) => {
   var command = commands.find((command) => command.name === 'take-screenshot')
@@ -61,11 +57,14 @@ var events = {
     }
     m.redraw();
   },
+  driveFolderUrlChanged: (e) => {
+    const url = e.target.value;
+    state.driveFolderUrlInput = url;
+    parseAndSaveFolderId(url);
+  },
   button: (action) => () => {
     if (action === 'driveAuth') {
       handleDriveAuth();
-    } else if (action === 'browseFolders') {
-      openFolderBrowser();
     } else if (action === 'driveResetAuth') {
       handleDriveResetAuth();
     } else {
@@ -73,116 +72,87 @@ var events = {
         shortcut: 'chrome://extensions/shortcuts',
       }[action]})
     }
-  },
-  folderBrowser: {
-    close: () => {
-      state.folderBrowser.isOpen = false;
-      m.redraw();
-    },
-    open: (folderId = null) => {
-      console.log(`Attempting to open folder: ${folderId === null ? 'My Drive' : folderId}`);
-      state.folderBrowser.loading = true;
-      state.folderBrowser.error = null;
-      const previousFolderId = state.folderBrowser.currentFolderId;
-      if (folderId !== null) {
-        const folder = state.folderBrowser.folders.find(f => f.id === folderId);
-        if (folder) {
-          state.folderBrowser.parentStack.push(previousFolderId === null ? null : previousFolderId);
-          console.log("Pushed to parent stack:", previousFolderId === null ? 'null (My Drive)' : previousFolderId);
-          state.folderBrowser.breadcrumbs.push({ id: folderId, name: folder.name });
-          console.log("Added breadcrumb:", folder.name);
-        } else {
-          console.warn("Folder details not found in current list when trying to open:", folderId);
-          state.folderBrowser.error = "Could not find folder details to open it.";
-          state.folderBrowser.loading = false;
-          m.redraw();
-          return;
-        }
-      } else {
-        state.folderBrowser.breadcrumbs = [{ id: null, name: 'My Drive' }];
-        state.folderBrowser.parentStack = [];
-        console.log("Opening My Drive folder, reset stack and breadcrumbs");
-      }
-      state.folderBrowser.currentFolderId = folderId;
-      console.log("Set currentFolderId to:", folderId);
-      loadFolders(folderId);
-    },
-     back: () => {
-      if (state.folderBrowser.parentStack.length > 0) {
-        const parentId = state.folderBrowser.parentStack.pop();
-        state.folderBrowser.breadcrumbs.pop();
-        console.log("Navigating back to folder:", parentId === null ? 'My Drive' : parentId);
-        state.folderBrowser.loading = true;
-        state.folderBrowser.error = null;
-        state.folderBrowser.currentFolderId = parentId;
-        loadFolders(parentId);
-      } else {
-        console.warn("Back called with empty parent stack, going to My Drive.");
-        state.folderBrowser.breadcrumbs = [{ id: null, name: 'My Drive' }];
-        state.folderBrowser.parentStack = [];
-        state.folderBrowser.loading = true;
-        state.folderBrowser.error = null;
-        state.folderBrowser.currentFolderId = null;
-        loadFolders(null);
-      }
-    },
-    select: (folderId, folderName) => {
-      state.driveFolderId = folderId;
-      state.driveFolderName = folderId === null ? 'My Drive' : (folderName || 'Selected Folder');
-      chrome.storage.sync.set({
-        driveFolderId: state.driveFolderId,
-        driveFolderName: state.driveFolderName
-      });
-      state.folderBrowser.isOpen = false;
-      m.redraw();
-    }
   }
+  // folderBrowser event handlers removed
 }
 
-function openFolderBrowser() {
-  if (state.driveAuthStatus !== 'logged_in') {
-    console.error('Cannot open folder browser: not authenticated');
-    return;
-  }
-  state.folderBrowser.isOpen = true;
-  state.folderBrowser.loading = true;
-  state.folderBrowser.error = null;
-  state.folderBrowser.currentFolderId = null;
-  state.folderBrowser.parentStack = [];
-  state.folderBrowser.folders = [];
-  state.folderBrowser.breadcrumbs = [{ id: null, name: 'My Drive' }];
-  loadFolders();
-  m.redraw();
-}
+// --- Updated Function to Parse, Validate, and Save Folder ID ---
+function parseAndSaveFolderId(url) {
+  state.driveFolderUrlInput = url; // Keep input value updated
+  let extractedFolderId = '';
 
-function loadFolders(parentId = null) {
-  chrome.runtime.sendMessage({
-    action: 'listDriveFolders',
-    parentId: parentId
-  }, (response) => {
-    console.log("Response received in options page from listDriveFolders:", JSON.stringify(response, null, 2));
-    state.folderBrowser.loading = false;
-    if (chrome.runtime.lastError) {
-      console.error('Error receiving folder list from background:', chrome.runtime.lastError);
-      state.folderBrowser.error = 'Error communicating with background script: ' + chrome.runtime.lastError.message;
-    } else if (response && response.success) {
-      if (response.folders && Array.isArray(response.folders.files)) {
-        state.folderBrowser.folders = response.folders.files;
-        state.folderBrowser.error = null;
-        console.log('Successfully updated state.folderBrowser.folders:', state.folderBrowser.folders);
-      } else {
-        console.warn('listDriveFolders reported success, but response.folders.files is missing or not an array:', response.folders);
-        state.folderBrowser.folders = [];
-        state.folderBrowser.error = 'Received unexpected data structure for folders.';
-      }
+  if (url) {
+    const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      extractedFolderId = match[1];
+      console.log('Extracted Folder ID:', extractedFolderId);
     } else {
-      state.folderBrowser.error = response ? response.error : 'Unknown error fetching folders.';
-      state.folderBrowser.folders = [];
-      console.error('Background script reported failure loading folders:', state.folderBrowser.error);
+      console.log('Could not extract Folder ID from URL:', url);
+      // Treat invalid URL format as reverting to My Drive, but show a specific error
+      state.driveFolderValidationStatus = 'invalid';
+      state.driveFolderValidationError = 'Invalid Google Drive folder URL format.';
+      state.driveFolderId = ''; // Revert to My Drive
+      state.driveFolderName = 'My Drive'; // Reset name
+      chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }); // Save My Drive default
+      m.redraw();
+      return; // Stop processing
     }
-    m.redraw();
-  });
+  }
+
+  // Clear previous error/status if starting validation or using My Drive
+  state.driveFolderValidationError = null;
+
+  if (extractedFolderId) {
+    // --- Validate the extracted ID ---
+    state.driveFolderValidationStatus = 'checking';
+    m.redraw(); // Show loading state
+
+    chrome.runtime.sendMessage({
+      action: 'checkFolderExists',
+      folderId: extractedFolderId
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Error communicating with background for folder check:', chrome.runtime.lastError);
+        state.driveFolderValidationStatus = 'invalid';
+        state.driveFolderValidationError = 'Error checking folder: ' + chrome.runtime.lastError.message;
+        state.driveFolderId = ''; // Revert to My Drive on error
+        state.driveFolderName = 'My Drive'; // Reset name
+        chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' });
+      } else if (response && response.success) {
+        console.log('Folder validation successful for ID:', extractedFolderId, 'Name:', response.name);
+        state.driveFolderValidationStatus = 'valid';
+        state.driveFolderValidationError = null;
+        state.driveFolderId = extractedFolderId; // Set the valid ID
+        state.driveFolderName = response.name || extractedFolderId; // Use name, fallback to ID if name missing
+        // Save both ID and Name
+        chrome.storage.sync.set({ driveFolderId: extractedFolderId, driveFolderName: state.driveFolderName });
+      } else {
+        console.warn('Folder validation failed:', response ? response.error : 'Unknown error');
+        state.driveFolderValidationStatus = 'invalid';
+        state.driveFolderValidationError = response ? response.error : 'Folder not found or access denied.';
+        state.driveFolderId = ''; // Revert to My Drive
+        state.driveFolderName = 'My Drive'; // Reset name
+        chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }); // Save My Drive default
+      }
+      m.redraw(); // Update UI with validation result
+    });
+  } else {
+    // --- No URL or no ID extracted: Default to My Drive ---
+    console.log('No folder URL provided or ID not extracted, defaulting to My Drive.');
+    state.driveFolderValidationStatus = 'valid'; // My Drive is always considered valid
+    state.driveFolderValidationError = null;
+    state.driveFolderId = ''; // Ensure state reflects My Drive
+    state.driveFolderName = 'My Drive'; // Set name for My Drive
+    chrome.storage.sync.set({ driveFolderId: '', driveFolderName: 'My Drive' }, () => { // Save My Drive default
+       if (chrome.runtime.lastError) {
+           console.error('Error saving default driveFolderId/Name:', chrome.runtime.lastError);
+       }
+       m.redraw();
+    });
+  }
 }
+// --- End Updated Function ---
+
 
 var currentAuthToken = null;
 
@@ -225,9 +195,10 @@ function handleDriveResetAuth() {
       console.log('Drive Auth Reset Success reported by background script.');
       state.driveAuthStatus = 'logged_out';
       currentAuthToken = null;
-      state.driveFolderId = '';
-      state.driveFolderName = 'My Drive';
-      chrome.storage.sync.remove(['driveFolderId', 'driveFolderName']);
+      state.driveFolderId = ''; // Reset to My Drive
+      state.driveFolderName = 'My Drive'; // Reset name
+      state.driveFolderUrlInput = ''; // Clear the input field
+      chrome.storage.sync.remove(['driveFolderId', 'driveFolderName']); // Remove both from storage
     } else {
       console.error('Drive Auth Reset Failed reported by background script:', response ? response.error : 'No response');
       state.driveAuthStatus = 'error';
@@ -369,91 +340,59 @@ m.mount(document.querySelector('main'), {
         ),
 
         m('h3', 'Google Drive Folder'),
-        m('.bs-callout',
+        // Removed duplicate H3 title
+        m('.bs-callout', [
           m('.row',
-            m('.col-sm-12', {style: 'display: flex; align-items: center; flex-wrap: wrap;'},
-              m('span.s-text', {style: 'padding-left: 0; padding-right: 8px;'}, 'Save Folder:'),
-              m('span.selected-folder', {style: 'margin-right: 10px;'}, state.driveFolderName || 'My Drive'),
-              m('button.mdc-button mdc-button--raised s-button', {
-                style: 'margin-left: auto;',
-                oncreate: oncreate.ripple,
-                onclick: events.button('browseFolders'),
-                disabled: state.driveAuthStatus !== 'logged_in'
-              }, 'Browse')
+            m('.col-sm-12',
+              m('label.s-label', { for: 'drive-folder-url-input' }, 'Paste Google Drive Folder URL (leave blank for My Drive):'),
+              m('.mdc-text-field.mdc-text-field--fullwidth', {
+                  class: state.driveFolderValidationStatus === 'invalid' ? 'mdc-text-field--invalid' : '',
+                  oncreate: oncreate.textfield,
+                  style: 'margin-bottom: 5px;' // Reduced margin
+                },
+                m('input.mdc-text-field__input#drive-folder-url-input', {
+                  type: 'url',
+                  placeholder: 'e.g., https://drive.google.com/drive/folders/YOUR_FOLDER_ID',
+                  value: state.driveFolderUrlInput,
+                  oninput: events.driveFolderUrlChanged, // Changed from onchange
+                  disabled: state.driveAuthStatus !== 'logged_in',
+                  'aria-controls': 'folder-helper-text',
+                  'aria-describedby': 'folder-helper-text'
+                }),
+                // Optional: Add trailing icon for status
+                state.driveFolderValidationStatus === 'checking' && m('i.material-icons mdc-text-field__icon mdc-text-field__icon--trailing', { tabindex: "0", role: "button" }, 'hourglass_top'),
+                state.driveFolderValidationStatus === 'valid' && state.driveFolderUrlInput && m('i.material-icons mdc-text-field__icon mdc-text-field__icon--trailing', { tabindex: "0", role: "button", style: 'color: green;' }, 'check_circle'),
+                state.driveFolderValidationStatus === 'invalid' && m('i.material-icons mdc-text-field__icon mdc-text-field__icon--trailing', { tabindex: "0", role: "button" }, 'error'),
+                m('.mdc-line-ripple')
+              ),
+              // Helper text for validation status/errors
+              m('.mdc-text-field-helper-line#folder-helper-text',
+                m('.mdc-text-field-helper-text', {
+                  class: state.driveFolderValidationStatus === 'invalid' ? 'mdc-text-field-helper-text--persistent mdc-text-field-helper-text--validation-msg' : '',
+                  'aria-hidden': 'true'
+                }, state.driveFolderValidationError || (state.driveFolderValidationStatus === 'checking' ? 'Checking folder...' : '') )
+              ),
+              // Display current setting
+              // Display current setting using folder name
+              m('p.s-text', {style: 'margin-top: 10px;'},
+                'Currently saving to: ',
+                m('strong', state.driveFolderName || 'My Drive') // Display name, default to My Drive
+              )
             )
           )
-        ),
+        ]),
+        // Add warning about sharing permissions
+        m('.bs-callout.bs-callout-warning', {style: 'margin-top: 15px;'},
+          m('h4', {style: 'margin-bottom: 5px;'}, m('i.material-icons', {style: 'vertical-align: middle; margin-right: 5px; color: orange;'}, 'warning'), 'Sharing Permissions'),
+          m('p', {style: 'margin-bottom: 0;'},
+            'Please be aware that screenshots uploaded to Google Drive using this extension are automatically set to be ',
+            m('strong', 'viewable by anyone with the link'),
+            '. Exercise caution when sharing these links.'
+          )
+        )
       ),
     ), // End of main .row
 
-    // Folder browser modal (remains the same)
-    state.folderBrowser.isOpen && m('.folder-browser-modal', [
-      m('.folder-browser-overlay', { onclick: events.folderBrowser.close }),
-      m('.folder-browser-content', [
-        m('.folder-browser-header', [
-          m('h3', 'Select Google Drive Folder'),
-          m('button.folder-browser-close', { onclick: events.folderBrowser.close }, '×')
-        ]),
-        m('.folder-browser-breadcrumbs', [
-          state.folderBrowser.breadcrumbs.map((crumb, index) => {
-            const isLast = index === state.folderBrowser.breadcrumbs.length - 1;
-            return [
-              index > 0 && m('span.breadcrumb-separator', ' > '),
-              isLast
-                ? m('span.breadcrumb-current', crumb.name)
-                : m('a.breadcrumb-link', {
-                    onclick: () => {
-                      state.folderBrowser.parentStack = state.folderBrowser.parentStack.slice(0, index);
-                      state.folderBrowser.breadcrumbs = state.folderBrowser.breadcrumbs.slice(0, index + 1);
-                      state.folderBrowser.loading = true;
-                      state.folderBrowser.error = null;
-                      state.folderBrowser.currentFolderId = crumb.id;
-                      loadFolders(crumb.id);
-                    }
-                  }, crumb.name)
-            ];
-          })
-        ]),
-        m('.folder-browser-body', [
-          state.folderBrowser.loading
-            ? m('.folder-browser-loading', 'Loading folders...')
-            : state.folderBrowser.error
-              ? m('.folder-browser-error', state.folderBrowser.error)
-              : state.folderBrowser.folders.length === 0
-                ? m('.folder-browser-empty', 'No folders found in this location')
-                : m('.folder-browser-folders',
-                    state.folderBrowser.folders.map(folder =>
-                      m('.folder-item', [
-                        m('span.folder-icon', '📁'),
-                        m('span.folder-name', folder.name),
-                        m('.folder-actions', [
-                          m('button.folder-select', {
-                            onclick: () => events.folderBrowser.select(folder.id, folder.name)
-                          }, 'Select'),
-                          m('button.folder-open', {
-                            onclick: () => events.folderBrowser.open(folder.id)
-                          }, 'Open')
-                        ])
-                      ])
-                    )
-                  )
-        ]),
-        m('.folder-browser-footer', [
-          state.folderBrowser.parentStack.length > 0 &&
-            m('button.mdc-button mdc-button--raised s-button', {
-              oncreate: oncreate.ripple,
-              onclick: events.folderBrowser.back
-            }, 'Back'),
-          m('button.mdc-button mdc-button--raised s-button', {
-            oncreate: oncreate.ripple,
-            onclick: () => events.folderBrowser.select(null, 'My Drive')
-          }, 'Use My Drive'),
-          m('button.mdc-button mdc-button--raised s-button', {
-            oncreate: oncreate.ripple,
-            onclick: events.folderBrowser.close
-          }, 'Cancel')
-        ])
-      ])
-    ])
+    // Folder browser modal removed
   ]
 })
