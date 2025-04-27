@@ -47,7 +47,7 @@
 Screenshots are saved directly to your Google Drive.
 
 1. Go to the extension options page.
-2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension only requires permission create files (to save the screenshots).
+2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension uses the `drive.file` scope, which **only grants permission to create new files** (the screenshots) and **does not grant access to read or modify any other files** in your Google Drive.
 3. Optionally, under "Google Drive Folder", paste the URL of a specific folder within your Drive where screenshots should be saved. By default, they are saved in the root "My Drive" folder.
 
 **Important Note:** When screenshots are saved to Google Drive, they are automatically set to be **viewable by anyone with the link**. Exercise caution when sharing these links.
@@ -109,9 +109,13 @@ Note that you won't receive any future updates automatically!
 
 # License
 
+Copyright (c) 2014-present 
+
 The MIT License (MIT)
 
-Copyright (c) 2014-present Simeon Velichkov <simeonvelichkov@gmail.com> (https://github.com/simov/screenshot-capture) # Keep original repo link unless changed
+Copyright (c) 2025-present Vinoth Deivasigamani (https://github.com/dvinothkumar/screenshot-link) # Keep original repo link unless changed. 
+
+This work is derived from Simeon Velichkov's <simeonvelichkov@gmail.com> work available at https://github.com/simov/screenshot-capture and offered under MIT license. The current fork is maintained at https://github.com/dvinothkumar/screenshot-link. Thank you, Simeon!
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -134,5 +138,5 @@ SOFTWARE.
 
   [chrome]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
 
-  [releases]: https://github.com/simov/screenshot-capture/releases
-  [mv2]: https://github.com/simov/screenshot-capture/tree/mv2
+  [releases]: https://github.com/dvinothkumar/screenshot-link/releases
+  [mv2]: https://github.com/dvinothkumar/screenshot-link/tree/mv2

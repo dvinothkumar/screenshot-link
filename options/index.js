@@ -338,9 +338,13 @@ m.mount(document.querySelector('main'), {
             )
           )
         ),
+        // Add clarification about drive.file scope
+        m('p.s-text', {style: 'font-size: 0.9em; margin-top: 5px; margin-bottom: 15px;'},
+          m('i.material-icons', {style: 'vertical-align: middle; font-size: 1.1em; margin-right: 3px; color: #6c757d;'}, 'info'),
+          'This extension uses the ', m('code', 'drive.file'), ' scope, which only allows it to create new files (your screenshots). It cannot access or modify any other files in your Google Drive.'
+        ),
 
         m('h3', 'Google Drive Folder'),
-        // Removed duplicate H3 title
         m('.bs-callout', [
           m('.row',
             m('.col-sm-12',

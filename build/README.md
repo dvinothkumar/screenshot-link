@@ -5,7 +5,7 @@ Build the `vendor` folder, and create the `screenshot-link.zip` package:
 
 ```bash
 # pick a release tag
-git clone --depth 1 --branch 3.1 https://github.com/simov/screenshot-capture.git
+git clone --depth 1 --branch 3.1 https://github.com/dvinothkumar/screenshot-link.git
 cd screenshot-link/
 # build
 sh build/package.sh
