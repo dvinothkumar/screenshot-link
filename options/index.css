@@ -221,6 +221,68 @@ span.s-text code { background: #ececec; padding: 5px 8px; border-radius: 3px; }
   font-weight: bold;
 }
 
+/* Status Display Container */
+.status-display {
+  display: inline-flex; /* Align dot and text */
+  align-items: center;
+  margin-right: 10px; /* Space before button */
+  vertical-align: middle; /* Align with button */
+  line-height: 36px; /* Match button height roughly */
+}
+
+/* Status Dot */
+.status-dot {
+  display: inline-block;
+  width: 14px; /* Slightly larger dot */
+  height: 14px;
+  border-radius: 50%;
+  margin-right: 8px; /* Space between dot and text */
+  border: 1px solid rgba(0,0,0,0.2);
+}
+
+.status-dot.status-logged-in {
+  background-color: #1e8e3e; /* Darker Google green */
+}
+
+.status-dot.status-logged-out,
+.status-dot.status-error {
+  background-color: #c53929; /* Darker Google red */
+}
+
+.status-dot.status-checking,
+.status-dot.status-logging-in {
+  background-color: #fbbc05; /* Google yellow */
+  animation: pulse-yellow-dot 1.5s infinite ease-in-out;
+}
+
+/* Status Text */
+.status-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: #333; /* Default dark text color */
+  text-transform: uppercase;
+}
+
+/* Optional pulsing animation for checking state */
+@keyframes pulse-yellow-dot {
+  0% { box-shadow: 0 0 2px #fbbc05; }
+  50% { box-shadow: 0 0 6px #fbbc05; }
+  100% { box-shadow: 0 0 2px #fbbc05; }
+}
+
+/* Style for the action button when it means "Log Out" */
+.s-button-logout {
+  background-color: #f44336 !important; /* Red background */
+  color: white !important;
+}
+.s-button-logout:before {
+  background-color: rgba(211, 47, 47, 0.56) !important; /* Darker red ripple */
+}
+.s-button-logout:after {
+  background-color: rgba(211, 47, 47, 0.56) !important; /* Darker red ripple */
+}
+
+
 /*---------------------------------------------------------------------------*/
 /*Google Drive folder selector*/
 

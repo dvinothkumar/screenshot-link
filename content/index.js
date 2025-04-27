@@ -1,18 +1,18 @@
 var jcrop, selection;
-let isWaitingForCapture = false; // State for 'wait' mode
+// let isWaitingForCapture = false; // State for 'wait' mode - REMOVED
 let currentConfig = {}; // Store config for reuse
 
 var overlay = ((active) => (state) => {
   active = typeof state === 'boolean' ? state : state === null ? active : !active;
-  // Also consider the waiting state for showing the overlay
-  const shouldShow = active || isWaitingForCapture;
+  // const shouldShow = active || isWaitingForCapture; // Simplified - wait mode removed
+  const shouldShow = active;
   $('.jcrop-holder')[shouldShow ? 'show' : 'hide']();
 
-  // Send message including waiting state if applicable
+  // Send message - wait state removed
   chrome.runtime.sendMessage({
     message: 'active',
-    active: shouldShow, // True if cropping OR waiting
-    isWaiting: isWaitingForCapture // Specifically indicate waiting state
+    active: shouldShow // True if cropping
+    // isWaiting: isWaitingForCapture // Specifically indicate waiting state - REMOVED
   });
 })(false);
 
@@ -51,16 +51,12 @@ var init = (config, done) => {
     onSelect: (e) => { // Fires when selection is complete (mouse up)
       console.log("Content script: Jcrop onSelect fired:", e);
       selection = e;
+      // Only 'crop' method remains for selection-based capture
       if (currentConfig.method === 'crop') {
         console.log("Content script: Mode is 'crop', capturing immediately.");
         capture(); // Call capture directly for 'crop' mode
-      } else if (currentConfig.method === 'wait') {
-        console.log("Content script: Mode is 'wait', setting waiting state.");
-        isWaitingForCapture = true;
-        // Update overlay/icon state via background
-        chrome.runtime.sendMessage({ message: 'active', active: true, isWaiting: true });
-        // Don't capture yet, wait for trigger
       }
+      // 'wait' mode logic removed
     },
     onChange: (e) => { // Fires while dragging
       selection = e;
@@ -68,9 +64,9 @@ var init = (config, done) => {
     onRelease: (e) => { // Fires when selection is clicked away or Esc
       console.log("Content script: Jcrop onRelease fired");
       selection = null;
-      isWaitingForCapture = false; // No longer waiting if selection released
-      // Update overlay/icon state via background
-      chrome.runtime.sendMessage({ message: 'active', active: false, isWaiting: false });
+      // isWaitingForCapture = false; // No longer waiting if selection released - REMOVED
+      // Update overlay/icon state via background - wait state removed
+      chrome.runtime.sendMessage({ message: 'active', active: false });
       // Hide overlay manually if needed, though sendMessage should handle it
       overlay(false);
     }
@@ -107,22 +103,23 @@ var capture = () => {
   }
   console.log(`Content script: Capturing with method: ${config.method}, Selection:`, selection ? JSON.stringify(selection) : 'null');
 
-  if (selection && (config.method === 'crop' || config.method === 'wait')) {
-    console.log("Content script: Entering crop/wait capture logic.");
+  // Simplified: Only 'crop' method uses selection now
+  if (selection && config.method === 'crop') {
+    console.log("Content script: Entering crop capture logic.");
     const currentSelection = selection; // Store selection locally
     if (!currentSelection) {
         console.error("Content script: currentSelection is unexpectedly null/undefined inside if block.");
-        isWaitingForCapture = false; // Reset state
+        // isWaitingForCapture = false; // Reset state - REMOVED
         overlay(false);
         return; // Exit if selection was somehow cleared
     }
 
-    // Send capture message immediately
+    // Send capture message immediately (quality removed)
     chrome.runtime.sendMessage({
-      message: 'capture', format: config.format, quality: config.quality
+      message: 'capture', format: config.format /* quality: config.quality */
     }, (res) => {
-      // Reset waiting state regardless of success/failure after attempting capture
-      isWaitingForCapture = false;
+      // Reset waiting state regardless of success/failure after attempting capture - REMOVED
+      // isWaitingForCapture = false;
 
       if (chrome.runtime.lastError || !res || !res.image) {
         console.error("Failed to capture image:", chrome.runtime.lastError || "No image data received");
@@ -131,8 +128,8 @@ var capture = () => {
           try { jcrop.release(); } catch (e) { console.error("Error releasing Jcrop:", e); }
         }
         selection = null; // Clear selection state
-        // Update icon state via background
-        chrome.runtime.sendMessage({ message: 'active', active: false, isWaiting: false });
+        // Update icon state via background - wait state removed
+        chrome.runtime.sendMessage({ message: 'active', active: false });
         return;
       }
 
@@ -141,33 +138,37 @@ var capture = () => {
       if (jcrop) {
         try { jcrop.release(); } catch (e) { console.error("Error releasing Jcrop:", e); }
       }
-      crop(res.image, currentSelection, devicePixelRatio, config.scaling, config.format, (image) => {
-        save(image, config.format, config.save, config.clipboard, config.dialog);
+      // Removed config.scaling from crop call
+      crop(res.image, currentSelection, devicePixelRatio, /* config.scaling */ true, config.format, (image) => {
+        // Removed config.clipboard and config.dialog from save call
+        save(image, config.format, config.save /*, config.clipboard, config.dialog */);
         selection = null; // Clear selection state after saving
-        // Update icon state via background
-        chrome.runtime.sendMessage({ message: 'active', active: false, isWaiting: false });
+        // Update icon state via background - wait state removed
+        chrome.runtime.sendMessage({ message: 'active', active: false });
       });
     });
   }
   // Viewport and Page capture logic remains the same
   else if (config.method === 'view') {
     chrome.runtime.sendMessage({
-      message: 'capture', format: config.format, quality: config.quality
+      message: 'capture', format: config.format /* quality: config.quality */
     }, (res) => {
       overlay(false)
       if (chrome.runtime.lastError || !res || !res.image) {
           console.error("Failed to capture viewport:", chrome.runtime.lastError || "No image data received");
           return;
       }
-      if (devicePixelRatio !== 1 && !config.scaling) {
-        var area = {x: 0, y: 0, w: innerWidth, h: innerHeight}
-        crop(res.image, area, devicePixelRatio, config.scaling, config.format, (image) => {
-          save(image, config.format, config.save, config.clipboard, config.dialog)
-        })
-      }
-      else {
-        save(res.image, config.format, config.save, config.clipboard, config.dialog)
-      }
+      // Removed scaling check and associated crop/save calls
+      // if (devicePixelRatio !== 1 && !config.scaling) {
+      //   var area = {x: 0, y: 0, w: innerWidth, h: innerHeight}
+      //   crop(res.image, area, devicePixelRatio, /* config.scaling */ true, config.format, (image) => {
+      //     save(image, config.format, config.save /*, config.clipboard, config.dialog */)
+      //   })
+      // }
+      // else {
+        // Removed config.clipboard and config.dialog from save call
+        save(res.image, config.format, config.save /*, config.clipboard, config.dialog */)
+      // }
     })
   }
   else if (config.method === 'page') {
@@ -184,7 +185,7 @@ var capture = () => {
       var count = 0
       ;(function scroll (done) {
         chrome.runtime.sendMessage({
-          message: 'capture', format: config.format, quality: config.quality
+          message: 'capture', format: config.format /* quality: config.quality */
         }, (res) => {
           if (chrome.runtime.lastError || !res || !res.image) {
               console.error("Failed to capture page segment:", chrome.runtime.lastError || "No image data received");
@@ -221,10 +222,12 @@ var capture = () => {
       })(() => {
         overlay(false)
         var area = {x: 0, y: 0, w: innerWidth, h: images.reduce((all, {height}) => all += height, 0)}
-        crop(images, area, devicePixelRatio, config.scaling, config.format, (image) => {
+        // Removed config.scaling from crop call
+        crop(images, area, devicePixelRatio, /* config.scaling */ true, config.format, (image) => {
           document.querySelector('html').style.overflow = ''
           document.querySelector('body').style.overflow = ''
-          save(image, config.format, config.save, config.clipboard, config.dialog)
+          // Removed config.clipboard and config.dialog from save call
+          save(image, config.format, config.save /*, config.clipboard, config.dialog */)
         })
       })
     }, config.delay)
@@ -238,55 +241,17 @@ var filename = (format) => {
     [pad(now.getFullYear()), pad(now.getMonth() + 1), pad(now.getDate())].join('-')
     + ' - ' +
     [pad(now.getHours()), pad(now.getMinutes()), pad(now.getSeconds())].join('-')
-  return `Screenshot Capture - ${timestamp(new Date())}.${ext(format)}`
+  return `Screenshot Link - ${timestamp(new Date())}.${ext(format)}` // Updated name
 }
 
-var save = (image, format, save, clipboard, dialog) => {
-  if (save.includes('file')) {
-    var link = document.createElement('a')
-    link.download = filename(format)
-    link.href = image
-    link.click()
-  }
-  if (save.includes('clipboard')) {
-    if (clipboard === 'url') {
-      navigator.clipboard.writeText(image).then(() => {
-        if (dialog) {
-          alert([
-            'Screenshot Capture:',
-            'Data URL String',
-            'Saved to Clipboard!'
-          ].join('\n'))
-        }
-      })
-    }
-    else if (clipboard === 'binary') {
-      var [header, base64] = image.split(',')
-      var [_, type] = /data:(.*);base64/.exec(header)
-      var binary = atob(base64)
-      var array = Array.from({length: binary.length})
-        .map((_, index) => binary.charCodeAt(index))
-      navigator.clipboard.write([
-        new ClipboardItem({
-          'image/png': new Blob([new Uint8Array(array)], {type: 'image/png'})
-        })
-      ]).then(() => {
-        if (dialog) {
-          alert([
-            'Screenshot Capture:',
-            'Binary Image',
-            'Saved to Clipboard!'
-          ].join('\n'))
-        }
-      })
-    }
-  }
-  // Add Google Drive upload trigger
-  if (save.includes('drive')) {
-    setTimeout(() => {
-      console.log('Sending uploadToDrive message to background script.');
-      chrome.runtime.sendMessage({
-        action: 'uploadToDrive',
+// Simplified save function as only 'drive' is possible
+var save = (image, format, save /*, clipboard, dialog */) => {
+  // Only 'drive' save logic remains
+  if (save === 'drive') {
+    // Removed setTimeout wrapper
+    console.log('Sending uploadToDrive message to background script.');
+    chrome.runtime.sendMessage({
+      action: 'uploadToDrive',
         imageDataUrl: image,
         filename: filename(format)
       }, (response) => {
@@ -298,12 +263,13 @@ var save = (image, format, save, clipboard, dialog) => {
           alert(`Google Drive upload failed: ${response.error || 'Unknown error'}`);
         } else {
           console.log('Background script acknowledged uploadToDrive message.');
-          if (dialog && !save.includes('clipboard')) {
-             alert('Screenshot sent for Google Drive upload.');
-          }
+          // Removed dialog check
+          // if (dialog && !save.includes('clipboard')) {
+          //    alert('Screenshot sent for Google Drive upload.');
+          // }
         }
       });
-    }, 100);
+    // Removed setTimeout wrapper closing parts
   }
 }
 
@@ -319,13 +285,13 @@ window.addEventListener('resize', ((timeout) => () => {
       } finally {
         jcrop = null; // Ensure jcrop is nullified
         selection = null; // Clear selection on resize
-        isWaitingForCapture = false; // Reset waiting state
+        // isWaitingForCapture = false; // Reset waiting state - REMOVED
         // Remove Jcrop UI elements explicitly
         $('.jcrop-holder').remove();
         $('.jcrop-tracker').remove();
         $('#fake-image').remove();
-        // Update icon state via background
-        chrome.runtime.sendMessage({ message: 'active', active: false, isWaiting: false });
+        // Update icon state via background - wait state removed
+        chrome.runtime.sendMessage({ message: 'active', active: false });
       }
     }
     // Reinitialize only if needed (e.g., if user clicks icon again)
@@ -337,6 +303,7 @@ window.addEventListener('resize', ((timeout) => () => {
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   console.log("Content script received message:", req.message); // Log received messages
 
+  // Removed driveUploadComplete message handler
   if (req.message === 'init') {
     // Acknowledge the message immediately
     sendResponse({});
@@ -355,7 +322,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             } finally {
                 jcrop = null;
                 selection = null;
-                isWaitingForCapture = false;
+                // isWaitingForCapture = false; // REMOVED
                 $('.jcrop-holder').remove();
                 $('.jcrop-tracker').remove();
                 $('#fake-image').remove();
@@ -366,7 +333,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
             $('.jcrop-tracker').remove();
             $('#fake-image').remove();
             selection = null;
-            isWaitingForCapture = false;
+            // isWaitingForCapture = false; // REMOVED
         }
 
         // Initialize image and Jcrop
@@ -384,21 +351,15 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
     return true; // Keep channel open for async response from storage.sync.get
   }
   else if (req.message === 'queryState') {
-    console.log("Content script: Responding to queryState:", { isActive: !!jcrop, isWaiting: isWaitingForCapture });
-    sendResponse({ isActive: !!jcrop, isWaiting: isWaitingForCapture });
+    // console.log("Content script: Responding to queryState:", { isActive: !!jcrop, isWaiting: isWaitingForCapture }); // Simplified log
+    console.log("Content script: Responding to queryState:", { isActive: !!jcrop });
+    // sendResponse({ isActive: !!jcrop, isWaiting: isWaitingForCapture }); // Simplified response
+    sendResponse({ isActive: !!jcrop });
     return false; // Synchronous response
   }
-  else if (req.message === 'triggerCapture') {
-    console.log("Content script: Received triggerCapture.");
-    if (isWaitingForCapture && selection) {
-      console.log("Content script: Triggering capture for waiting selection.");
-      capture(); // Call capture now
-    } else {
-      console.warn("Content script: Received triggerCapture but not waiting or no selection.");
-      // Optionally send back a failure or just ignore
-    }
-    return false; // Synchronous processing
-  }
+  // Removed triggerCapture listener as it was only for 'wait' mode
+  // else if (req.message === 'triggerCapture') { ... }
+
   // Keep the return true for the original 'init' message if needed elsewhere,
   // but specific handlers should return false if synchronous.
   // If adding more async handlers, ensure they return true.

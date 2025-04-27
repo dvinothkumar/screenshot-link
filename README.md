@@ -1,20 +1,18 @@
 
-# Screenshot Capture / Browser Extension
+# Screenshot Link / Chrome Extension
 
-**Install: [Chrome]** / **[Edge]** / **[Opera]**  / **[Brave]** / **[Chromium]** / **[Vivaldi]**
+**Install: [Chrome]**
 
 # Features
 
 - Secure by design
-- Capture Viewport
-- Crop and Save (automatic save)
-- Crop and Wait (manual save)
+- Full screen capture
+- Crop and capture
 - Configurable Keyboard Shortcut
-- Save screenshot as PNG or JPG image file
-- Copy screenshot to clipboard as Data URL String or Binary Image
-- Preserve or downscale screenshot size on HDPI displays like Retina
+- Save screenshot as PNG image file to Google Drive
+- Copy screenshot link or image from Google Drive page
 - Unique screenshot date/time file name
-- No special permissions required
+- No special permissions required (beyond Google Drive access)
 - Free and Open Source
 
 # Options
@@ -26,64 +24,36 @@
 # Table of Contents
 
 - **[Capture Method](#capture-method)**
-- **[Image Format](#image-format)**
-- **[Screenshot Scaling](#screenshot-scaling)**
-- **[Save Format](#save-format)**
+- **[Google Drive Setup](#google-drive-setup)**
 - **[Keyboard Shortcut](#keyboard-shortcut)**
 - **[Save Location](#save-location)**
 - **[Caveats](#caveats)**
 
 # Capture Method
 
-#### **`Crop and Save`**
+#### **`Crop and Capture`**
 
 1. Activate the extension by using the [keyboard shortcut](#keyboard-shortcut) or by clicking on the extension button
-2. Hold down your left mouse button anywhere on the page and drag your mouse in any direction
-3. Release the mouse button when you are ready, the selected area will be cropped
+    2. Hold down your left mouse button anywhere on the page and drag your mouse in any direction
+    3. Release the mouse button when you are ready, the selected area will be captured
 
-#### **`Crop and Wait`**
-
-1. Activate the extension by using the [keyboard shortcut](#keyboard-shortcut) or by clicking on the extension button
-2. Hold down your left mouse button anywhere on the page and drag your mouse in any direction
-3. Adjust the selected are to crop and/or move it around
-4. When you are ready activate the extension again by using the [keyboard shortcut](#keyboard-shortcut) or by clicking on the extension button, the selected area will be cropped
-
-#### **`Capture Viewport`**
+#### **`Full Screen Capture`**
 
 1. Activate the extension by using the [keyboard shortcut](#keyboard-shortcut) or by clicking on the extension button
 2. The visible area of the screen will be captured
 
-# Image Format
+# Google Drive Setup
 
-- **`PNG`** - better image quality but larger file size. Best suited for cropping and capturing simple web pages
+Screenshots are saved directly to your Google Drive.
 
-- **`JPG`** - smaller file size with slightly lower image quality. Useful when capturing the entire screen area especially with lots of images on screen or when capturing still shots of videos. The quality of the JPEG can be adjusted from 100 to 0 (highest to lowest)
-
-# Screenshot Scaling
-
-- **`Preserve scaling`** - the screenshot will be saved with the page scaling that you are seeing on the screen
-
-- **`Downscale to actual size`** - on HDPI displays like Retina or zoomed pages the screenshot will be downscaled to the original page size
-
-# Save Format
-
-- **`To File`** - save the screenshot to a file. Depending on your [download preferences](#save-location) you will be either prompted to save the file or the file will be saved automatically in your download folder
-
-- **`To Clipboard`** - copy the screenshot to your clipboard:
-  - **`Data URL String`** - the screenshot will be copied to the clipboard as Data URL String
-  - **`Binary Image`** - the screenshot will be copied to the clipboard as raw Binary Image
-  - **`Confirmation Dialog`** - toggle the confirmation dialog on copy to clipboard
+1. Go to the extension options page.
+2. Under "Google Drive Authentication", click "Authenticate" and follow the prompts to grant the extension permission to access your Google Drive. The extension requires permission to view folders (to allow you to select a save location) and create files (to save the screenshots).
+3. Optionally, under "Google Drive Folder", click "Browse" to select a specific folder within your Drive where screenshots should be saved. By default, they are saved in the root "My Drive" folder.
 
 # Keyboard Shortcut
 
 1. Navigate to `chrome://extensions/shortcuts`
-2. Find the Screenshot Capture extension and set key combination for the `Take Screenshot` action
-
-# Save Location
-
-1. Navigate to `chrome://settings/downloads`
-2. Change the default download `Location`
-3. Use the `Ask where to save each file before downloading` switch to toggle the **autosaving**
+2. Find the Screenshot Link extension and set key combination for the `Take Screenshot` action
 
 # Caveats
 
@@ -96,32 +66,26 @@ The extension won't work on the following origins:
 To enable the extension on local `file:///` URLs:
 
 1. Navigate to `chrome://extensions`
-2. Locate the Screenshot Capture extension and click on the `Details` button
+2. Locate the Screenshot Link extension and click on the `Details` button
 3. Make sure that the `Allow access to file URLs` switch is turned on
 
-Copy to clipboard:
-
-- it won't work on domains served on insecure `http://` protocol, but it will work on `http://localhost`
-- when using `Capture Viewport` you will be asked by the browser to grant read access to the clipboard
-- `Capture Viewport` won't work on PDF documents, use `Crop and Save` instead and select the entire screen area
+- `Full Screen Capture` won't work on PDF documents, use `Crop and Capture` instead and select the entire screen area
 
 # Manual Install
 
-The following instructions applies for: Chrome, Edge, Opera, Brave, Chromium and Vivaldi.
-
-Note that in any of the following cases you won't receive any future updates automatically!
+Note that you won't receive any future updates automatically!
 
 ## Load packed .crx
 
 1. Go to [releases] and pick a release that you want to install
-2. Download the `screenshot-capture.crx` file
+2. Download the `screenshot-link.crx` file
 3. Navigate to `chrome://extensions`
 4. Drag and drop the `markdown-viewer.crx` file into the `chrome://extensions` page
 
 ## Load unpacked .zip
 
 1. Go to [releases] and pick a release that you want to install
-2. Download the `screenshot-capture.zip` file and extract it
+2. Download the `screenshot-link.zip` file and extract it
 3. Navigate to `chrome://extensions`
 4. Make sure that the `Developer mode` switch is enabled
 5. Click on the `Load unpacked` button and select the extracted directory
@@ -129,14 +93,14 @@ Note that in any of the following cases you won't receive any future updates aut
 ## Build
 
 1. Clone this repository
-2. Execute `sh build/package.sh chrome`
+2. Execute `sh build/package.sh chrome` # Note: build script now produces screenshot-link named files
 3. Navigate to `chrome://extensions`
 4. Make sure that the `Developer mode` switch is enabled
 5. Click on the `Load unpacked` button and select the cloned directory
 
 ## Manifest v2
 
-1. Clone the [mv2] branch (Screenshot Capture v2.0)
+1. Clone the [mv2] branch (Screenshot Link v2.0) # Assuming branch name might change too
 2. Navigate to `chrome://extensions`
 3. Make sure that the `Developer mode` switch is enabled
 4. Click on the `Load unpacked` button and select the cloned directory
@@ -145,7 +109,7 @@ Note that in any of the following cases you won't receive any future updates aut
 
 The MIT License (MIT)
 
-Copyright (c) 2014-present Simeon Velichkov <simeonvelichkov@gmail.com> (https://github.com/simov/screenshot-capture)
+Copyright (c) 2014-present Simeon Velichkov <simeonvelichkov@gmail.com> (https://github.com/simov/screenshot-capture) # Keep original repo link unless changed
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -167,11 +131,6 @@ SOFTWARE.
 
 
   [chrome]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
-  [edge]: https://microsoftedge.microsoft.com/addons/detail/screenshot-capture/fjmanmejbodljeaicnkgdgibdbeheela
-  [opera]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
-  [brave]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
-  [chromium]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
-  [vivaldi]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
 
   [releases]: https://github.com/simov/screenshot-capture/releases
   [mv2]: https://github.com/simov/screenshot-capture/tree/mv2

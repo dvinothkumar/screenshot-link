@@ -2,15 +2,15 @@ console.log("Background script starting..."); // Add log
 
 // --- Default Settings ---
 var defaults = {
-  method: 'crop',
-  format: 'png',
-  quality: 100,
-  scaling: true,
-  save: ['file'],
-  clipboard: 'url',
-  dialog: true,
-  icon: 'default',
-  driveCopyLink: false // Default for the copy link setting
+  method: 'view', // Changed default to full screen capture
+  format: 'png', // Only option now
+  // quality: 100, // Removed quality setting
+  // scaling: true, // Removed
+  save: 'drive', // Default to 'drive' as it's the only option
+  // clipboard: 'url', // Removed - defaults to binary implicitly
+  // dialog: true, // Removed
+  // icon: 'default', // Removed icon setting
+  driveCopyLink: false // Default for the copy link setting (though UI removed)
 }
 
 // --- Initialization ---
@@ -19,26 +19,23 @@ chrome.storage.sync.get((store) => {
   // Ensure all defaults are present
   Object.assign(config, defaults, JSON.parse(JSON.stringify(store)))
 
-  // v3.0 -> v3.1
-  if (typeof config.save === 'string') {
-    config.clipboard = /url|binary/.test(config.save) ? config.save : 'url'
-    config.save = /url|binary/.test(config.save) ? ['clipboard'] : ['file']
-  }
-  if (config.dpr !== undefined) {
-    config.scaling = config.dpr
-    delete config.dpr
-  }
-  if (typeof config.icon === 'boolean') {
-    config.icon = config.icon === false ? 'default' : 'light'
-  }
-  chrome.storage.sync.set(config)
+  // Removed migration logic for 'save' as 'drive' is the only option
+  config.save = 'drive'; // Ensure save is always 'drive'
+  // Ensure format is always 'png'
+  config.format = 'png';
+  // Remove quality if it exists from old config (already done by delete below)
+  delete config.quality; // Ensure quality is removed
 
-  chrome.action.setIcon({
-    path: [16, 19, 38, 48, 128].reduce((all, size) => (
-      all[size] = `/icons/${config.icon}/${size}x${size}.png`,
-      all
-    ), {})
-  })
+  // Removed scaling migration
+  // if (config.dpr !== undefined) {
+  //   config.scaling = config.dpr
+  //   delete config.dpr
+  // }
+  // Removed icon migration/setting logic
+  delete config.icon; // Remove icon setting if it exists
+  chrome.storage.sync.set(config) // Save cleaned config
+
+  // Removed chrome.action.setIcon call (icons now set in manifest)
 })
 
 // --- Content Script Injection ---
@@ -103,13 +100,11 @@ chrome.action.onClicked.addListener((tab) => {
       // Likely content script not injected or tab not ready
       console.log(`QueryState failed for tab ${tab.id}: ${chrome.runtime.lastError.message}. Injecting scripts.`);
       inject(tab);
-    } else if (response && response.isActive && response.isWaiting) {
-      // Content script is waiting, trigger capture
-      console.log(`Content script in tab ${tab.id} is waiting. Sending triggerCapture.`);
-      chrome.tabs.sendMessage(tab.id, { message: 'triggerCapture' });
+    // Removed check for isWaiting and triggerCapture logic as 'wait' mode is gone.
+    // else if (response && response.isActive && response.isWaiting) { ... }
     } else {
-      // Content script exists but isn't waiting, or state is unknown - inject/re-inject
-      console.log(`Content script in tab ${tab.id} not waiting or state unknown. Injecting scripts.`);
+      // Content script exists but isn't in the expected state (or maybe just needs re-init) - inject/re-inject
+      console.log(`Content script in tab ${tab.id} exists but state unknown or needs re-init. Injecting scripts.`);
       inject(tab);
     }
   });
@@ -124,11 +119,10 @@ chrome.commands.onCommand.addListener((command) => {
          if (chrome.runtime.lastError) {
            console.log(`QueryState failed for tab ${tab[0].id}: ${chrome.runtime.lastError.message}. Injecting scripts.`);
            inject(tab[0]);
-         } else if (response && response.isActive && response.isWaiting) {
-           console.log(`Content script in tab ${tab[0].id} is waiting. Sending triggerCapture.`);
-           chrome.tabs.sendMessage(tab[0].id, { message: 'triggerCapture' });
+         // Removed check for isWaiting and triggerCapture logic as 'wait' mode is gone.
+         // else if (response && response.isActive && response.isWaiting) { ... }
          } else {
-           console.log(`Content script in tab ${tab[0].id} not waiting or state unknown. Injecting scripts.`);
+           console.log(`Content script in tab ${tab[0].id} exists but state unknown or needs re-init. Injecting scripts.`);
            inject(tab[0]);
          }
        });
@@ -173,36 +167,55 @@ async function uploadToDrive(imageDataUrl, filename, folderId, token) {
     return result;
   } catch (error) {
     console.error('Drive Upload Fetch Error:', error);
-    chrome.notifications.create({
-      type: 'basic', iconUrl: '/icons/default/48x48.png',
-      title: '❌ Upload Failed',
-      message: `Failed to upload to Google Drive: ${error.message}`
-    });
     return null;
   }
 }
 
-// Store notification IDs mapped to their Drive file URLs
-const notificationFileLinks = {};
-
 async function listDriveFolders(token, parentId = null, pageToken = null) {
+  console.log(`Listing folders for parentId: ${parentId}, pageToken: ${pageToken}`);
   try {
     let query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
     if (parentId) {
       query += ` and '${parentId}' in parents`;
     } else {
-      query += " and ('root' in parents or sharedWithMe)";
+      query += " and 'root' in parents";
     }
-    let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=nextPageToken,files(id,name,parents)&orderBy=name`;
-    if (pageToken) url += `&pageToken=${pageToken}`;
+
+    let url = `https://www.googleapis.com/drive/v3/files?` +
+              `q=${encodeURIComponent(query)}` +
+              `&fields=nextPageToken,files(id,name,parents)` +
+              `&orderBy=name` +
+              `&pageSize=100`;
+
+    if (pageToken) {
+      url += `&pageToken=${pageToken}`;
+    }
+
+    console.log("Constructed Drive API URL:", url);
+
     const response = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const responseBody = await response.text();
+    console.log(`Drive API Response Status: ${response.status}`);
+    console.log("Drive API Raw Response Body:", responseBody);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = JSON.parse(responseBody);
+      } catch (e) {
+        console.error("Failed to parse error response JSON:", e);
+        errorData = { error: { message: `HTTP error ${response.status}` } };
+      }
+      console.error('Drive API Error:', errorData);
       throw new Error(`Google Drive API Error: ${errorData.error?.message || response.statusText}`);
     }
-    return await response.json();
+
+    const result = JSON.parse(responseBody);
+    console.log("Parsed Drive API Result:", JSON.stringify(result, null, 2));
+    return result;
+
   } catch (error) {
-    console.error('Error listing Drive folders:', error);
+    console.error('Error in listDriveFolders function:', error);
     throw error;
   }
 }
@@ -230,40 +243,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.identity.getAuthToken({ interactive: true }, (token) => {
       if (chrome.runtime.lastError || !token) {
         console.error('Drive Auth Error for Upload:', chrome.runtime.lastError);
-        chrome.notifications.create({
-          type: 'basic', iconUrl: '/icons/default/48x48.png',
-          title: 'Google Drive Authentication Needed',
-          message: 'Could not authenticate with Google Drive. Please check options.'
-        });
         sendResponse({ success: false, error: 'Authentication failed' });
       } else {
-        // Only need folderId here, copyLink setting is checked in onClicked listener
         chrome.storage.sync.get(['driveFolderId'], (config) => {
           const folderId = config.driveFolderId || null;
 
           uploadToDrive(request.imageDataUrl, request.filename, folderId, token)
             .then(fileData => {
+              console.log("Upload successful, fileData:", JSON.stringify(fileData));
               if (fileData && fileData.webViewLink) {
-                const notificationId = `drive-upload-${fileData.id}`;
-                // Store link for onClicked listener
-                notificationFileLinks[notificationId] = fileData.webViewLink;
-                console.log(`Stored link for notification ${notificationId}: ${fileData.webViewLink}`);
-
-                // Create notification (copy happens onClicked now)
-                chrome.notifications.create(notificationId, {
-                  type: 'basic', iconUrl: '/icons/default/48x48.png',
-                  title: '✅ Screenshot Saved',
-                  message: `Uploaded "${request.filename}". 👆 CLICK TO VIEW in Google Drive.`
-                });
+                 // Open the file in a new tab immediately
+                  chrome.tabs.create({ url: fileData.webViewLink }, (newTab) => {
+                    console.log(`Opened uploaded file in new tab: ${fileData.webViewLink} (Tab ID: ${newTab.id})`);
+                    // Inject the copy button script after the tab is created
+                    if (newTab && newTab.id) {
+                      setTimeout(() => {
+                        console.log(`Injecting drive-copy-button script into tab ${newTab.id}`);
+                        chrome.scripting.executeScript({
+                          target: { tabId: newTab.id },
+                          files: ['content/drive-copy-button.js']
+                        }).then(() => {
+                          console.log("Successfully injected drive-copy-button.js");
+                        }).catch(err => {
+                          console.error("Failed to inject drive-copy-button.js:", err);
+                        });
+                      }, 500);
+                    } else {
+                       console.error("Could not get new tab ID to inject copy button script.");
+                    }
+                  });
                 sendResponse({ success: true });
-
               } else if (fileData) {
                  console.warn('Upload successful but no webViewLink received.');
-                 chrome.notifications.create({
-                    type: 'basic', iconUrl: '/icons/default/48x48.png',
-                    title: '✅ Screenshot Saved (No Link)',
-                    message: `Successfully uploaded "${request.filename}" to Google Drive.`
-                  });
                  sendResponse({ success: true, warning: 'No view link available.' });
               } else {
                 sendResponse({ success: false, error: 'Upload failed (see console for details)' });
@@ -302,7 +313,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       performAuth(false);
     }
 
-    function performAuth(forceAuth) { // forceAuth is not directly used now but kept for clarity
+    function performAuth(forceAuth) {
       console.log(`Performing auth...`);
       const authOptions = { interactive: true };
       chrome.identity.getAuthToken(authOptions, (token) => {
@@ -337,8 +348,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   // --- Capture Message ---
   else if (request.message === 'capture') {
+    // Format is always PNG, quality is irrelevant
     chrome.tabs.query({active: true, currentWindow: true}, (tab) => {
-      chrome.tabs.captureVisibleTab(tab.windowId, {format: request.format, quality: request.quality}, (image) => {
+      chrome.tabs.captureVisibleTab(tab.windowId, {format: 'png'}, (image) => { // Hardcode format: 'png'
         sendResponse({message: 'image', image})
       })
     });
@@ -349,98 +361,54 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.active) {
       chrome.storage.sync.get((config) => {
         const method = config.method || defaults.method; // Use default if not set
-        let title = 'Screenshot Capture';
+        let title = 'Screenshot Link'; // Use new extension name as default
         let badgeText = '';
-        if (method === 'crop') { title = 'Crop and Save'; badgeText = '◩'; }
-        else if (method === 'wait') { title = 'Crop and Wait'; badgeText = '◪'; }
-        else if (method === 'view') { title = 'Capture Viewport'; badgeText = '⬒'; }
-        else if (method === 'page') { title = 'Capture Document'; badgeText = '◼'; }
+        if (method === 'crop') { title = 'Crop and Capture'; badgeText = '◩'; } // Updated capitalization
+        else if (method === 'view') { title = 'Full Screen Capture'; badgeText = '⬒'; } // Updated capitalization
+        else if (method === 'page') { title = 'Capture Document'; badgeText = '◼'; } // Keep page title if re-enabled later
         chrome.action.setTitle({tabId: sender.tab.id, title: title});
         chrome.action.setBadgeText({tabId: sender.tab.id, text: badgeText});
       });
     } else {
-      chrome.action.setTitle({tabId: sender.tab.id, title: 'Screenshot Capture'});
+      chrome.action.setTitle({tabId: sender.tab.id, title: 'Screenshot Link'}); // Use new extension name
       chrome.action.setBadgeText({tabId: sender.tab.id, text: ''});
     }
-    // No async response needed
   }
-  // Return false if not sending an async response (or nothing)
-});
-
-// --- Notification Click Listener ---
-chrome.notifications.onClicked.addListener((notificationId) => {
-  console.log(`Notification clicked: ${notificationId}`);
-  // Check if this notification ID corresponds to a Drive upload
-  if (notificationFileLinks[notificationId]) {
-    const urlToOpen = notificationFileLinks[notificationId];
-    const linkToCopy = notificationFileLinks[notificationId]; // Keep link for clipboard
-
-    // Clear the original notification first
-    chrome.notifications.clear(notificationId);
-    // Remove the link from our map immediately
-    delete notificationFileLinks[notificationId];
-
-    // Check if the copy link option is enabled
-    chrome.storage.sync.get(['driveCopyLink'], (config) => {
-      const shouldCopyLink = config.driveCopyLink === true;
-
-      // Open the file link in a new tab
-      chrome.tabs.create({ url: urlToOpen }, (newTab) => {
-        // If copy is enabled, inject script into the *new* tab to copy the link
-        if (shouldCopyLink && newTab && newTab.id) {
-          // Wait a short moment for the tab to potentially load basic structure
-          // This might increase the chances of the clipboard API being ready
-          setTimeout(() => {
-            console.log(`Attempting to copy link to clipboard in tab ${newTab.id}`);
-            chrome.scripting.executeScript({
-              target: { tabId: newTab.id },
-              func: copyTextToClipboard,
-              args: [linkToCopy]
-            }).then(() => {
-              console.log("Clipboard write script executed successfully.");
-              // Show copy success notification *after* script execution attempt
-              chrome.notifications.create({
-                type: 'basic', iconUrl: '/icons/default/48x48.png',
-                title: '✅ Link Copied',
-                message: 'Google Drive link copied to clipboard.'
-              });
-            }).catch(err => {
-              console.error("Failed to execute clipboard script:", err);
-              // Show copy failure notification
-              chrome.notifications.create({
-                type: 'basic', iconUrl: '/icons/default/48x48.png',
-                title: '❌ Copy Failed',
-                message: `Could not copy link: ${err.message}` // Include error message
-              });
+  // --- Revoke Drive Auth ---
+  else if (request.action === 'revokeDriveAuth') {
+    console.log('Received revokeDriveAuth message');
+    chrome.identity.getAuthToken({ interactive: false }, (token) => {
+      if (chrome.runtime.lastError || !token) {
+        console.warn('Revoke requested, but no token found or error:', chrome.runtime.lastError?.message);
+        sendResponse({ success: true, message: 'No active token to revoke.' });
+      } else {
+        chrome.identity.removeCachedAuthToken({ token: token }, () => {
+          if (chrome.runtime.lastError) {
+            console.error('Error removing cached token:', chrome.runtime.lastError);
+          } else {
+            console.log('Token removed from cache.');
+          }
+          fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`)
+            .then(response => {
+              console.log('Google token revocation response status:', response.status);
+              if (response.ok) {
+                console.log('Token successfully revoked with Google.');
+                sendResponse({ success: true });
+              } else {
+                console.error('Failed to revoke token with Google, status:', response.status);
+                response.text().then(text => console.error('Revocation response body:', text));
+                sendResponse({ success: true, warning: 'Could not revoke token with Google, but removed locally.' });
+              }
+            })
+            .catch(error => {
+              console.error('Error sending revocation request to Google:', error);
+              sendResponse({ success: false, error: 'Failed to send revocation request to Google.' });
             });
-          }, 100); // 100ms delay, adjust if needed
-        } else if (shouldCopyLink) {
-            console.error("Could not get new tab ID to inject clipboard script.");
-             chrome.notifications.create({
-              type: 'basic', iconUrl: '/icons/default/48x48.png',
-              title: '❌ Copy Failed',
-              message: 'Could not copy link (failed to access new tab).'
-            });
-        }
-      });
+        });
+      }
     });
-  } else {
-    console.log('Notification click did not match a stored Drive link.');
+    return true;
   }
 });
-
-// Function to be injected into the tab to copy text
-function copyTextToClipboard(text) {
-  navigator.clipboard.writeText(text)
-    .then(() => {
-      console.log('Link successfully copied to clipboard by injected script.');
-    })
-    .catch(err => {
-      console.error('Injected script failed to copy link:', err);
-      // Note: Cannot easily send message back to background from injected func
-      // Error handling relies on the .catch() in the background script's executeScript call
-    });
-}
-
 
 console.log("Background script initialization complete."); // Add log

@@ -1,12 +1,12 @@
 
 # Build
 
-Build the `vendor` folder, and create the `screenshot-capture.zip` package:
+Build the `vendor` folder, and create the `screenshot-link.zip` package:
 
 ```bash
 # pick a release tag
 git clone --depth 1 --branch 3.1 https://github.com/simov/screenshot-capture.git
-cd screenshot-capture/
+cd screenshot-link/
 # build
 sh build/package.sh
 ```
