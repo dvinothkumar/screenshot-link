@@ -55,8 +55,7 @@
     "scripting",
     "activeTab",
     "identity",
-    "clipboardWrite",
-    "tabs"
+    "clipboardWrite"
   ],
 
   "host_permissions": [
