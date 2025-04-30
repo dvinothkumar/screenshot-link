@@ -1,0 +1,10 @@
+npm-debug.log
+coverage/
+node_modules/
+package-lock.json
+build/tmp
+build/mdc/tmp
+
+/vendor/
+/*.zip
+Thumbs.db

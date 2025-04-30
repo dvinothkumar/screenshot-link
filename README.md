@@ -129,7 +129,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-  [chrome]: https://chromewebstore.google.com/detail/screenshot-capture/giabbpobpebjfegnpcclkocepcgockkc
+  [chrome]: https://chromewebstore.google.com/detail/screenshot-link/kpodikohfifojandlmiimaabbdklgdep
 
   [releases]: https://github.com/dvinothkumar/screenshot-link/releases
-

@@ -92,41 +92,39 @@ function inject (tab) {
 }
 
 // --- Event Listeners ---
-chrome.action.onClicked.addListener((tab) => {
-  // Check if content script is active and waiting before injecting
-  console.log(`Action clicked for tab ${tab.id}. Querying content script state.`);
+// Helper function to handle processing for both event triggers
+function processTabAction(tab) {
+  console.log(`Processing action for tab ${tab.id}. Querying content script state.`);
   chrome.tabs.sendMessage(tab.id, { message: 'queryState' }, (response) => {
     if (chrome.runtime.lastError) {
-      // Likely content script not injected or tab not ready
+      // Content script is not loaded or not responding
       console.log(`QueryState failed for tab ${tab.id}: ${chrome.runtime.lastError.message}. Injecting scripts.`);
       inject(tab);
     // Removed check for isWaiting and triggerCapture logic as 'wait' mode is gone.
     // else if (response && response.isActive && response.isWaiting) { ... }
     } else {
-      // Content script exists but isn't in the expected state (or maybe just needs re-init) - inject/re-inject
-      console.log(`Content script in tab ${tab.id} exists but state unknown or needs re-init. Injecting scripts.`);
+      // Content script exists but we always reinject for consistency
+      console.log(`Content script detected in tab ${tab.id}. Re-injecting for fresh initialization.`);
       inject(tab);
     }
   });
+}
+
+chrome.action.onClicked.addListener((tab) => {
+  // When the extension icon is clicked, use the common handler
+  processTabAction(tab);
 });
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'take-screenshot') {
-    // This might need similar logic to onClicked if commands should also trigger waiting captures
-    chrome.tabs.query({active: true, currentWindow: true}, (tab) => {
-       console.log(`Command triggered for tab ${tab[0].id}. Querying content script state.`);
-       chrome.tabs.sendMessage(tab[0].id, { message: 'queryState' }, (response) => {
-         if (chrome.runtime.lastError) {
-           console.log(`QueryState failed for tab ${tab[0].id}: ${chrome.runtime.lastError.message}. Injecting scripts.`);
-           inject(tab[0]);
-         // Removed check for isWaiting and triggerCapture logic as 'wait' mode is gone.
-         // else if (response && response.isActive && response.isWaiting) { ... }
-         } else {
-           console.log(`Content script in tab ${tab[0].id} exists but state unknown or needs re-init. Injecting scripts.`);
-           inject(tab[0]);
-         }
-       });
-    })
+    // When keyboard shortcut is used, get the active tab first, then use common handler
+    chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        processTabAction(tabs[0]);
+      } else {
+        console.warn('No active tab found when keyboard shortcut was used');
+      }
+    });
   }
 });
 
